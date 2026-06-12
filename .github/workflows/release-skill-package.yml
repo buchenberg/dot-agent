@@ -1,0 +1,56 @@
+name: Package Skills For Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package-skills:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+
+    env:
+      ASSET_NAME: dot-agent-skills-${{ github.event.release.tag_name }}.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build .agent/skills package structure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_root="dist/package"
+          target_skills_dir="$package_root/.agent/skills"
+          source_skills_dir="skills"
+
+          if [ ! -d "$source_skills_dir" ]; then
+            echo "Expected source directory '$source_skills_dir' not found."
+            exit 1
+          fi
+
+          mkdir -p "$target_skills_dir"
+
+          cp -R "$source_skills_dir"/. "$target_skills_dir/"
+
+          echo "Packaged skill directories:"
+          find "$target_skills_dir" -mindepth 1 -maxdepth 1 -type d -printf "- %f\n" | sort
+
+      - name: Create zip asset
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd dist/package
+          zip -r "../${ASSET_NAME}" ".agent"
+
+      - name: Upload zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ env.ASSET_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
