@@ -52,6 +52,26 @@ Before a skill is added here, it must be **sanitized** — stripped of anything 
 
 Copy a skill folder into your agent's skill directory, or reference it from your agent's configuration. Each skill's `description` frontmatter tells the agent **when** to load it — the agent matches keywords and context to decide relevance.
 
+## CI and Releases
+
+This repository uses GitHub Actions plus Conventional Commits to automate versioning, tagging, releases, and skill packaging.
+
+- Workflow: [.github/workflows/auto-release.yml](.github/workflows/auto-release.yml)
+- Trigger: push to `main`
+- Versioning: Conventional Commits (`feat`, `fix`, and `!` / `BREAKING CHANGE`)
+- Release automation: Release Please opens/updates a release PR, then creates tag + GitHub Release when merged
+- Release asset: a zip that maps `skills/` to `.agent/skills/` (`dot-agent-skills-<tag>.zip`)
+
+### Changelog Automation
+
+`CHANGELOG.md` is updated by CI via Release Please during the release PR flow.
+
+- Config: [release-please-config.json](release-please-config.json)
+- Changelog path: `CHANGELOG.md`
+- Initial version source: [.release-please-manifest.json](.release-please-manifest.json)
+
+If Actions in your repo/org cannot create PRs with `GITHUB_TOKEN`, add a PAT secret named `RELEASE_PLEASE_TOKEN` and the workflow will use it automatically.
+
 ## Contributing
 
 1. Fork and branch.
