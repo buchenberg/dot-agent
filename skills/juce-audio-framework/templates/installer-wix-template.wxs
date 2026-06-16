@@ -1,0 +1,74 @@
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"&gt;
+  &lt;Product
+    Id="*"
+    Name="PLUGIN_NAME"
+    Language="1033"
+    Version="!(bind.FileVersion.StandaloneExe)"
+    Manufacturer="PUBLISHER"
+    UpgradeCode="YOUR-GUID-HERE"&gt;
+
+    &lt;Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64" /&gt;
+
+    &lt;MajorUpgrade DowngradeErrorMessage="A newer version is already installed." /&gt;
+    &lt;MediaTemplate EmbedCab="yes" /&gt;
+
+    &lt;!-- Directory layout --&gt;
+    &lt;Directory Id="TARGETDIR" Name="SourceDir"&gt;
+      &lt;!-- VST3 --&gt;
+      &lt;Directory Id="CommonFilesFolder"&gt;
+        &lt;Directory Id="VST3FOLDER" Name="VST3"&gt;
+          &lt;Directory Id="VST3DIR" Name="PLUGIN_NAME.vst3" /&gt;
+        &lt;/Directory&gt;
+      &lt;/Directory&gt;
+
+      &lt;!-- Standalone --&gt;
+      &lt;Directory Id="ProgramFiles64Folder"&gt;
+        &lt;Directory Id="MANUFACTURERFOLDER" Name="PUBLISHER"&gt;
+          &lt;Directory Id="INSTALLFOLDER" Name="PLUGIN_NAME" /&gt;
+        &lt;/Directory&gt;
+      &lt;/Directory&gt;
+
+      &lt;!-- Start Menu: use NESTED directories, NOT backslashes in Name --&gt;
+      &lt;Directory Id="ProgramMenuFolder"&gt;
+        &lt;Directory Id="StartMenuManufacturer" Name="PUBLISHER"&gt;
+          &lt;Directory Id="STARTMENUFOLDER" Name="PLUGIN_NAME" /&gt;
+        &lt;/Directory&gt;
+      &lt;/Directory&gt;
+    &lt;/Directory&gt;
+
+    &lt;!-- Features for component selection --&gt;
+    &lt;Feature Id="VST3" Title="VST3 Plugin (64-bit)" Level="1"&gt;
+      &lt;ComponentGroupRef Id="VST3Components" /&gt;
+    &lt;/Feature&gt;
+    &lt;Feature Id="Standalone" Title="Standalone Application" Level="1"&gt;
+      &lt;ComponentGroupRef Id="StandaloneComponents" /&gt;
+    &lt;/Feature&gt;
+
+    &lt;!-- Standalone component with shortcuts --&gt;
+    &lt;ComponentGroup Id="StandaloneComponents" Directory="INSTALLFOLDER"&gt;
+      &lt;Component Id="StandaloneExe" Guid="*"&gt;
+        &lt;File Id="StandaloneExe"
+              Source="build\VialEffects_artefacts\Release\Standalone\PLUGIN_NAME.exe"
+              KeyPath="yes" /&gt;
+        &lt;Shortcut Id="StartMenuShortcut"
+                  Name="PLUGIN_NAME"
+                  Directory="STARTMENUFOLDER"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="no" /&gt;
+        &lt;Shortcut Id="UninstallShortcut"
+                  Name="Uninstall PLUGIN_NAME"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Directory="STARTMENUFOLDER" /&gt;
+      &lt;/Component&gt;
+    &lt;/ComponentGroup&gt;
+
+    &lt;UIRef Id="WixUI_FeatureTree" /&gt;
+    &lt;UIRef Id="WixUI_ErrorProgressText" /&gt;
+  &lt;/Product&gt;
+&lt;/Wix&gt;

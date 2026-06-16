@@ -1,0 +1,268 @@
+name: Build and Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type (patch, minor, major)'
+        required: true
+        type: choice
+        options: [patch, minor, major]
+        default: 'patch'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Version — determine bump type and calculate new version
+  # --------------------------------------------------------------------------
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      old_version: ${{ steps.ver.outputs.old_version }}
+      new_version: ${{ steps.ver.outputs.new_version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      bump: ${{ steps.ver.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ inputs.bump }}" >> "$GITHUB_OUTPUT"
+          else
+            TITLE="${{ github.event.pull_request.title }}"
+            if echo "$TITLE" | grep -qiE 'BREAKING[ -]CHANGE|!:'; then
+              echo "type=major" >> "$GITHUB_OUTPUT"
+            elif echo "$TITLE" | grep -qiE '^feat[\(:]'; then
+              echo "type=minor" >> "$GITHUB_OUTPUT"
+            elif echo "$TITLE" | grep -qiE '^fix[\(:]'; then
+              echo "type=patch" >> "$GITHUB_OUTPUT"
+            else
+              echo "type=patch" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Calculate new version
+        id: ver
+        run: |
+          # Replace PluginName with your CMake project name
+          OLD=$(grep -oP 'project\(PluginName VERSION \K[0-9.]+' CMakeLists.txt)
+          BUMP="${{ steps.bump.outputs.type }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          NEW="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "old_version=${OLD}" >> "$GITHUB_OUTPUT"
+          echo "new_version=${NEW}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}" >> "$GITHUB_OUTPUT"
+
+          echo "::notice::Version bump: ${OLD} → ${NEW} (${BUMP})"
+
+      - name: Bump version in source files
+        if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+        run: |
+          NEW="${{ steps.ver.outputs.new_version }}"
+          OLD="${{ steps.ver.outputs.old_version }}"
+          sed -i "s/project(PluginName VERSION ${OLD}/project(PluginName VERSION ${NEW}/" CMakeLists.txt
+          sed -i "s/\"version\": \"${OLD}\"/\"version\": \"${NEW}\"/" ui/package.json
+
+      - name: Commit and push version bump
+        if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CMakeLists.txt ui/package.json
+          git commit -m "chore(release): bump version to ${{ steps.ver.outputs.new_version }} [skip ci]"
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin main --tags
+
+  # --------------------------------------------------------------------------
+  # Windows — Inno Setup .exe installer
+  # --------------------------------------------------------------------------
+  build-windows:
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build web UI
+        run: cd ui && npm ci && npm run build
+      - name: Clone JUCE
+        run: |
+          mkdir -p third_party
+          git clone --depth 1 https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Download WebView2 NuGet
+        run: |
+          mkdir -p third_party/webview2
+          curl -L -o third_party/webview2/webview2.nupkg \
+            "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.3485.44"
+          cd third_party/webview2
+          unzip -o webview2.nupkg
+          # JUCE's FindWebView2.cmake globs for *Microsoft.Web.WebView2* subdir
+          cd ..
+          mv webview2 "Microsoft.Web.WebView2.1.0.3485.44"
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl \
+            -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/third_party"
+      - name: Build plugin
+        run: cmake --build build
+      - name: Build installer
+        run: |
+          mkdir -p build/installer
+          "C:/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            /DConfiguration=Release /O"build/installer/" installer/PluginName.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginName-${{ needs.version.outputs.new_version }}-win64
+          path: build/installer/PluginName-*-win64.exe
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # macOS — flat .pkg installer
+  # --------------------------------------------------------------------------
+  build-macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build web UI
+        run: cd ui && npm ci && npm run build
+      - name: Clone JUCE
+        run: |
+          mkdir -p third_party
+          git clone --depth 1 https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Configure CMake
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build plugin
+        run: cmake --build build
+      - name: Create .pkg installer
+        run: |
+          VERSION="${{ needs.version.outputs.new_version }}"
+          mkdir -p pkg_root/Library/Audio/Plug-Ins/VST3
+          mkdir -p pkg_root/Library/Audio/Plug-Ins/Components
+          mkdir -p pkg_root/Applications
+          cp -R "build/PluginName_artefacts/Release/VST3/PluginName.vst3" "pkg_root/Library/Audio/Plug-Ins/VST3/"
+          cp -R "build/PluginName_artefacts/Release/AU/PluginName.component" "pkg_root/Library/Audio/Plug-Ins/Components/"
+          cp -R "build/PluginName_artefacts/Release/Standalone/PluginName.app" "pkg_root/Applications/"
+          mkdir -p build/installer
+          pkgbuild --root pkg_root \
+            --identifier com.example.pluginname \
+            --version "${VERSION}" \
+            --install-location / \
+            "build/installer/PluginName-${VERSION}-macOS.pkg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginName-${{ needs.version.outputs.new_version }}-macOS
+          path: build/installer/PluginName-*-macOS.pkg
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # Linux — tarball
+  # --------------------------------------------------------------------------
+  build-linux:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config libasound2-dev libcurl4-openssl-dev libfreetype6-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libglu1-mesa-dev mesa-common-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build web UI
+        run: cd ui && npm ci && npm run build
+      - name: Clone JUCE
+        run: |
+          mkdir -p third_party
+          git clone --depth 1 https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Configure CMake
+        run: |
+          GTK_CFLAGS="$(pkg-config --cflags gtk+-3.0)"
+          WEBKIT_CFLAGS="$(pkg-config --cflags webkit2gtk-4.1)"
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="$GTK_CFLAGS $WEBKIT_CFLAGS"
+      - name: Build plugin
+        run: cmake --build build
+      - name: Create tarball
+        run: |
+          VERSION="${{ needs.version.outputs.new_version }}"
+          mkdir -p tarball_staging
+          cp -R "build/PluginName_artefacts/Release/VST3/PluginName.vst3" tarball_staging/ 2>/dev/null || true
+          cp "build/PluginName_artefacts/Release/Standalone/PluginName" tarball_staging/ 2>/dev/null || true
+          mkdir -p build/installer
+          tar -czf "build/installer/PluginName-${VERSION}-Linux.tar.gz" -C tarball_staging .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginName-${{ needs.version.outputs.new_version }}-Linux
+          path: build/installer/PluginName-*-Linux.tar.gz
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # Release — GitHub Release with all installers
+  # --------------------------------------------------------------------------
+  release:
+    needs: [version, build-windows, build-macos, build-linux]
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: PluginName ${{ needs.version.outputs.new_version }}
+          body: |
+            Version bump: **${{ needs.version.outputs.old_version }} → ${{ needs.version.outputs.new_version }}** (${{ needs.version.outputs.bump }})
+
+            Merged from PR [#${{ github.event.pull_request.number }}](${{ github.event.pull_request.html_url }})
+
+            ### Installers
+            | Platform | Format | Contents |
+            |----------|--------|----------|
+            | **Windows** | `.exe` | VST3 + Standalone |
+            | **macOS**   | `.pkg` | VST3 + AU + Standalone |
+            | **Linux**   | `.tar.gz` | VST3 + Standalone |
+          files: |
+            artifacts/**/*
+          draft: false
+          prerelease: false
+          make_latest: true

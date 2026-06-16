@@ -3234,6 +3234,92 @@ private:
 
 ---
 
+## 18. CI/CD for JUCE Plugins (GitHub Actions)
+
+Cross-platform build + release pipeline for JUCE audio plugins. The hard parts are
+(a) only running on PR merge — not on every PR push, (b) deriving semver bumps from
+conventional-commit PR titles, and (c) producing per-OS installers as release assets.
+
+**Trigger pattern.** Two equivalent options — pick one, never combine:
+- `pull_request` with `types: [closed]` + gate every job on
+  `if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'`
+- `push: branches: [main]` — every PR merge produces a push; no CI wasted on PR open/sync
+
+**Conventional-commit version bump.** Parse the merged PR title for prefix:
+- `fix:` → patch, `feat:` → minor, `BREAKING CHANGE` or `!:` → major
+- Fall back to `workflow_dispatch` with manual `choice` input
+- Bump `CMakeLists.txt` VERSION + tag + GitHub Release in the same job
+
+**Per-platform installers.**
+- Windows: WiX 4 (`wix build -arch x64 ...`) → `.msi`
+- macOS: `pkgbuild` (and `productbuild` for component packages) → `.pkg`
+- Linux: `tar czf` → `.tar.gz` (no native installer is universally portable)
+
+**Files in this skill:**
+- `scripts/installer-version-bump.sh` — shell script that derives the new version
+  from conventional-commit PR title and writes back to `CMakeLists.txt`.
+- `scripts/installer-wix-build.ps1` — Windows-side `wix build` invocation,
+  signed-with-fallback logic for `signtool`.
+- `templates/ci-build-and-release.yml` — full GitHub Actions workflow (matrix build
+  across windows/macos/linux + release publish). Drop into `.github/workflows/`.
+- `templates/installer-wix-template.wxs` — minimal WiX 4 template for a JUCE
+  plugin (VST3 + Standalone install paths, GUID upgrade code, start-menu shortcut).
+- `templates/installer-example-VialEffects.wxs` — fully populated example of the
+  same template, useful as a side-by-side reference when filling in your own.
+- `references/ci-conventional-commit-auto-version.md` — explains the title parsing
+  rules, edge cases (missing prefix, multiple commits, force-push), and how to
+  recover when CI picked the wrong bump.
+- `references/ci-windows-local-build.md` — reproducing the Windows half of the CI
+  pipeline locally (CMake config, `cmake --build`, `wix build`, signing).
+
+**Pitfalls.**
+- WiX 4 ≠ WiX 3 syntax — `<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">` and
+  `<Package>` (not `<Product>`). Old WiX 3 tutorials silently fail validation.
+- Code-signing requires the cert to be installed in the runner's cert store before
+  `signtool` is invoked. On hosted GitHub runners use the `azure/azure-key-vault` or
+  `Azure/trusted-signing-action` action — never check the cert into the repo.
+- `juce_add_plugin` with `COPY_PLUGIN_AFTER_BUILD TRUE` will try to copy to the
+  user's plugin dir on the runner and silently fail with non-fatal errors. Set
+  `FALSE` in CI builds.
+
+---
+
+## 19. UI Rendering on Windows — Diagnostics & Workarounds
+
+The hardest category of JUCE bugs in practice is "text doesn't render right on
+Windows under OpenGL/HiDPI". The cluster of bugs covers: text clipping, glyph
+offsets, fractional-DPI scaling artefacts, the JUCE 6 → 8 Font API migration,
+standalone window-config quirks, and MSVC-specific OpenGL/SIMD interactions.
+
+**Diagnose first, fix second.** Use `references/ui-diagnostic-decision-tree.md`
+to route a bug report ("font looks wrong on @user's 4K Surface") to the right
+root cause before changing code.
+
+**Files in this skill:**
+- `references/ui-diagnostic-decision-tree.md` — decision tree for routing
+  "text/font/UI looks wrong" reports to root cause (DPI? Font API? OpenGL? MSVC?).
+- `references/ui-juce8-font-api-migration.md` — JUCE 6/7 → 8 Font API rewrite
+  (`Font(float)` deprecated, `FontOptions` builder pattern, metric changes).
+- `references/ui-juce-standalone-window-config.md` — making `juce_add_plugin`'s
+  `Standalone` target launch with the right size, title, and centering on Win/Mac.
+- `references/ui-text-clipping-fix-locations.md` — known JUCE LookAndFeel methods
+  where text gets clipped by default; quick patches.
+- `references/ui-text-offset-workarounds.md` — exhaustive catalogue of glyph
+  vertical-offset workarounds across LookAndFeel methods, DPI scales, and OpenGL
+  contexts. Long; search within for the specific component class.
+- `references/juce-6-to-8-migration.md` — general (non-font) JUCE 6 → 8 migration.
+- `references/msvc-simd-detection.md` — MSVC `__cpuid` / `__cpuidex` SIMD probe
+  patterns and the `/arch:AVX2` pitfall.
+- `references/opengl-fractional-dpi-scaling.md` — fractional DPI (125%, 150%)
+  blur fix via custom `OpenGLContext::NativeContext` scaling.
+- `references/opengl-text-msvc-pitfalls.md` — text rendering specifically under
+  MSVC + OpenGL (different from MinGW + OpenGL).
+- `references/webview2-cmake-pitfalls.md` — WebView2 + CMake target wiring.
+- `references/windows-installer-inno-setup.md` — Inno Setup alternative to WiX
+  for Windows installers (smaller learning curve, slightly less control).
+
+---
+
 ## References
 
 - JUCE Documentation: https://juce.com/learn/documentation
@@ -3243,3 +3329,5 @@ private:
 - JUCE Forum: https://forum.juce.com/
 - CMake documentation for JUCE: https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md
 - JUCE 8 WebView Overview: https://juce.com/blog/juce-8-feature-overview-webview-uis/
+- WiX 4 docs: https://wixtoolset.org/docs/intro/
+- Conventional Commits spec: https://www.conventionalcommits.org/

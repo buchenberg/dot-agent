@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="PLUGIN_NAME"
+    Language="1033"
+    Version="!(bind.FileVersion.StandaloneExe)"
+    Manufacturer="MANUFACTURER"
+    UpgradeCode="YOUR-GUID-HERE">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Directory layout -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- VST3: Common Files\VST3\Plugin.vst3 -->
+      <Directory Id="CommonFilesFolder">
+        <Directory Id="VST3FOLDER" Name="VST3">
+          <Directory Id="VST3DIR" Name="PLUGIN_NAME.vst3" />
+        </Directory>
+      </Directory>
+
+      <!-- Standalone: Program Files\MANUFACTURER\PLUGIN_NAME -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="MANUFACTURERFOLDER" Name="MANUFACTURER">
+          <Directory Id="INSTALLFOLDER" Name="PLUGIN_NAME" />
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu: Programs\MANUFACTURER\PLUGIN_NAME -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="StartMenuManufacturer" Name="MANUFACTURER">
+          <Directory Id="STARTMENUFOLDER" Name="PLUGIN_NAME" />
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- Features for component selection -->
+    <Feature Id="VST3" Title="VST3 Plugin (64-bit)" Level="1">
+      <ComponentGroupRef Id="VST3Components" />
+    </Feature>
+    <Feature Id="Standalone" Title="Standalone Application" Level="1">
+      <ComponentGroupRef Id="StandaloneComponents" />
+    </Feature>
+
+    <!-- Standalone with shortcuts -->
+    <ComponentGroup Id="StandaloneComponents" Directory="INSTALLFOLDER">
+      <Component Id="StandaloneExe" Guid="*">
+        <File Id="StandaloneExe"
+              Source="build\ARTEFACTS_DIR\Release\Standalone\PLUGIN_NAME.exe"
+              KeyPath="yes" />
+        <Shortcut Id="StartMenuShortcut"
+                  Name="PLUGIN_NAME"
+                  Directory="STARTMENUFOLDER"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Advertise="no" />
+        <Shortcut Id="UninstallShortcut"
+                  Name="Uninstall PLUGIN_NAME"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Directory="STARTMENUFOLDER" />
+      </Component>
+    </ComponentGroup>
+
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+  </Product>
+</Wix>
