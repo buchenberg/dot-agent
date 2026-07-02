@@ -1,5 +1,5 @@
 ---
-description: "JUCE C++ audio framework — plugin development, DSP chains, GUI components, LookAndFeel customization, font rendering, OpenGL rendering, state management. Use when building audio plugins (VST/AU/AAX), standalone audio apps, DSP processing chains, custom GUIs, or any JUCE C++ project. WHEN: JUCE, juce, AudioProcessor, AudioPlugin, VST, AU plugin, AAX, AudioProcessorEditor, processBlock, prepareToPlay, DSP, ProcessorChain, AudioBlock, LookAndFeel, custom slider, custom knob, OpenGL, OpenGLContext, OpenGLRenderer, shader, Font rendering, Typeface, Graphics, FlexBox, Grid layout, AudioDeviceManager, AudioFormatManager, APVTS, AudioProcessorValueTreeState, Projucer, CMake juce."
+description: "JUCE C++ audio framework — plugin development, DSP chains, GUI components, LookAndFeel customization, font rendering, OpenGL rendering, state management, accessibility, ARA support, WebView UIs, web parameter relays, audio processor graph hosting, SmoothedValue, AbstractFifo, AudioPlayHead, MidiMessageCollector, unit testing, CI/CD, Linux builds. Use when building audio plugins (VST/AU/AAX), standalone audio apps, DSP processing chains, custom GUIs, plugin hosts, or any JUCE C++ project. WHEN: JUCE, juce, AudioProcessor, AudioPlugin, VST, AU plugin, AAX, AudioProcessorEditor, processBlock, prepareToPlay, DSP, ProcessorChain, AudioBlock, LookAndFeel, custom slider, custom knob, OpenGL, OpenGLContext, OpenGLRenderer, shader, Font rendering, Typeface, Graphics, FlexBox, Grid layout, AudioDeviceManager, AudioFormatManager, APVTS, AudioProcessorValueTreeState, Projucer, CMake juce, accessibility, screen reader, ARA, ARA effect, Linux dependencies, webview, WebView2, WebSliderRelay, WebToggleButtonRelay, WebComboBoxRelay, AudioProcessorGraph, plugin host, SmoothedValue, AbstractFifo, AudioPlayHead, MidiMessageCollector, UnitTest, testing, CI/CD, GitHub Actions, WiX installer."
 ---
 
 # JUCE Audio Framework — Complete Development Reference
@@ -323,6 +323,8 @@ private:
 ---
 
 ## 4. DSP Module — Audio Processing Building Blocks
+
+> **Full reference**: `references/dsp-reference.md` — complete processor table, custom processor pattern, convolution reverb, oversampling.
 
 The `juce_dsp` module provides composable audio processing units.
 
@@ -847,6 +849,8 @@ void resized() override
 
 ## 6. LookAndFeel — Complete Customization Reference
 
+> **Full reference**: `references/look-and-feel.md` — complete virtual methods reference for every widget type (buttons, sliders, combo boxes, popups, menus, windows, tooltips, etc.).
+
 The LookAndFeel system controls the visual appearance of every widget. JUCE provides four built-in themes:
 
 | Class | Style |
@@ -1341,6 +1345,8 @@ auto c10 = c.interpolatedWith (juce::Colours::white, 0.5f);  // blend
 ---
 
 ## 9. OpenGL Integration
+
+> **Full reference**: `references/opengl-reference.md` — versions/profiles, modern pipeline, VAO/VBO/EBO, advanced shaders, FBO techniques, performance, debugging, platform specifics.
 
 ### 9.1 OpenGLContext — The Entry Point
 
@@ -2482,6 +2488,9 @@ for (int i = 0; i < 8; ++i)
 
 ## 13. Threading & Real-Time Safety
 
+> **Full reference**: `references/threading-safety.md` — complete rules, safe cross-thread patterns, real-time allocation patterns, APVTS thread safety.
+> **Also see**: `references/audio-utilities.md` — `AbstractFifo` for lock-free audio ↔ GUI communication, `SmoothedValue` for glitch-free parameter changes.
+
 ### Critical rules for processBlock
 
 - **No allocations** — no `new`, `malloc`, `std::vector::push_back`, `String` creation
@@ -2779,7 +2788,11 @@ private:
 
 ## 17. WebView UIs (JUCE 8+)
 
+> **Full reference**: `references/webview-ui.md` — CMake config, resource providers, C++ ↔ JS communication, development workflow, best practices, limitations.
+
 JUCE 8 introduces first-class WebView support, allowing you to build plugin and app UIs with React, Vue, Svelte, or plain HTML/CSS/JavaScript instead of native JUCE Components.
+
+> **Recommended approach**: Use `WebSliderRelay` / `WebToggleButtonRelay` / `WebComboBoxRelay` for automatic parameter binding. See §24 and `references/web-parameter-relays.md`. The manual `withNativeIntegration` approach below is for advanced/custom cases.
 
 ### 17.1 Why WebView?
 
@@ -3236,6 +3249,8 @@ private:
 
 ## 18. CI/CD for JUCE Plugins (GitHub Actions)
 
+> **Full reference**: `references/ci-cd.md` — trigger patterns, conventional-commit bumping, per-platform installers, WiX 4 pitfalls, file listing.
+
 Cross-platform build + release pipeline for JUCE audio plugins. The hard parts are
 (a) only running on PR merge — not on every PR push, (b) deriving semver bumps from
 conventional-commit PR titles, and (c) producing per-OS installers as release assets.
@@ -3317,6 +3332,264 @@ root cause before changing code.
 - `references/webview2-cmake-pitfalls.md` — WebView2 + CMake target wiring.
 - `references/windows-installer-inno-setup.md` — Inno Setup alternative to WiX
   for Windows installers (smaller learning curve, slightly less control).
+
+---
+
+## 20. Accessibility
+
+> **Full reference**: `references/accessibility.md` — AccessibilityHandler subclass, AccessibilityRole enum, notification events, best practices.
+
+JUCE supports native screen readers and keyboard navigation:
+
+| Platform | Screen Reader |
+|----------|---------------|
+| Windows | Narrator (UI Automation) |
+| macOS | VoiceOver (NSAccessibility) |
+| iOS | VoiceOver |
+| Android | TalkBack |
+
+Any visible, enabled `Component` is automatically accessible. Customize with:
+
+```cpp
+myComponent.setTitle ("Gain Knob");
+myComponent.setDescription ("Controls the output gain");
+myComponent.setHelpText ("Drag up to increase");
+myComponent.setExplicitFocusOrder (1);
+```
+
+For custom components, subclass `AccessibilityHandler` and return from `createAccessibilityHandler()`. Key roles: `slider`, `button`, `comboBox`, `label`, `toggleButton`, `ignored` (decorative).
+
+Post notifications when values change programmatically:
+```cpp
+if (auto* handler = getAccessibilityHandler())
+    handler->notifyAccessibilityEvent (juce::AccessibilityEvent::valueChanged);
+```
+
+---
+
+## 21. ARA Plugin Support
+
+> **Full reference**: `references/ara-plugin-support.md` — SDK setup, CMake properties, document controller, analysis types, transformation flags.
+
+ARA (Audio Random Access) extends VST3/AU plugins with direct host audio access for waveform display, pitch analysis, and time-stretching.
+
+**Prerequisites**: ARA SDK 2.3.0 from https://github.com/Celemony/ARA_SDK
+
+```bash
+git clone --recursive --branch releases/2.3.0 https://github.com/Celemony/ARA_SDK
+```
+
+**CMake setup**:
+```cmake
+juce_set_ara_sdk_path(/path/to/ARA_SDK)
+
+juce_add_plugin(MyPlugin
+    IS_ARA_EFFECT TRUE
+    FORMATS AU VST3  # ARA extends AU and VST3 only
+)
+```
+
+**Plugin code**: Implement `createARAFactory()` by subclassing `ARADocumentControllerSpecialisation`. See `ARAPluginDemo` in JUCE examples.
+
+---
+
+## 22. Linux Dependencies
+
+> **Full reference**: `references/linux-dependencies.md` — per-module packages, headless CI builds, Wayland notes.
+
+JUCE requires platform-specific packages on Linux (Ubuntu 22/24):
+
+```bash
+sudo apt update
+sudo apt install libasound2-dev libjack-jackd2-dev \
+    ladspa-sdk \
+    libcurl4-openssl-dev \
+    libfreetype-dev libfontconfig1-dev \
+    libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+    libxinerama-dev libxrandr-dev libxrender-dev \
+    libwebkit2gtk-4.1-dev \
+    libglu1-mesa-dev mesa-common-dev
+```
+
+Disable optional dependencies with compile definitions:
+- `JUCE_JACK=0` — skip JACK
+- `JUCE_USE_CURL=0` — skip libcurl
+- `JUCE_WEB_BROWSER=0` — skip WebKit
+- `JUCE_USE_FONTCONFIG=0` / `JUCE_USE_FREETYPE=0` — skip font libs
+
+For headless CI: use `xvfb-run` or disable GUI modules entirely.
+
+---
+
+## 23. AudioProcessorGraph — Plugin Hosting & Routing
+
+> **Full reference**: `references/audio-processor-graph.md` — node management, connection API, AudioGraphIOProcessor types, plugin loading with AudioPluginFormatManager.
+
+`AudioProcessorGraph` is an `AudioProcessor` that plays back a graph of other AudioProcessors. Use it to build plugin hosts, audio routers, or modular processing chains.
+
+```cpp
+juce::AudioProcessorGraph graph;
+
+// Add I/O nodes
+auto* inputNode  = graph.addNode (std::make_unique<juce::AudioGraphIOProcessor> (
+                       juce::AudioGraphIOProcessor::audioInputNode));
+auto* outputNode = graph.addNode (std::make_unique<juce::AudioGraphIOProcessor> (
+                       juce::AudioGraphIOProcessor::audioOutputNode));
+
+// Add an effect
+auto* effectNode = graph.addNode (std::move (myPlugin));
+
+// Connect: input → effect → output
+graph.addConnection ({ { inputNode->nodeID,  0 }, { effectNode->nodeID, 0 } });
+graph.addConnection ({ { effectNode->nodeID, 0 }, { outputNode->nodeID, 0 } });
+
+// In processBlock
+graph.processBlock (buffer, midi);
+```
+
+---
+
+## 24. Web Parameter Relays (JUCE 8)
+
+> **Full reference**: `references/web-parameter-relays.md` — relay classes, attachments, JavaScript API, vs manual nativeIntegration.
+
+JUCE 8 provides relay classes that automatically bind APVTS parameters to JavaScript objects inside a `WebBrowserComponent`. This is the recommended approach for WebView-based plugin UIs.
+
+| Class | JS Accessor | Parameter Type |
+|-------|-------------|----------------|
+| `WebSliderRelay` | `Juce.getSliderState("name")` | Continuous (float) |
+| `WebToggleButtonRelay` | `Juce.getToggleState("name")` | Boolean |
+| `WebComboBoxRelay` | `Juce.getComboBoxState("name")` | Choice/enum |
+
+```cpp
+// C++ — declare relays and attachments
+juce::WebSliderRelay gainRelay { "gainSlider" };
+juce::WebSliderParameterAttachment gainAttachment { *apvts.getParameter ("gain"), gainRelay, nullptr };
+
+// Build options from relays
+auto options = juce::WebBrowserComponent::Options{}
+    .withOptionsFrom (gainRelay);
+```
+
+```javascript
+// JavaScript — use juce-framework-frontend
+import { getSliderState } from "juce-framework-frontend";
+const gainState = getSliderState("gainSlider");
+gainState.setValue(0.75);
+gainState.addListener((v) => updateUI(v));
+```
+
+---
+
+## 25. Audio Utilities
+
+> **Full reference**: `references/audio-utilities.md` — SmoothedValue, AbstractFifo, AudioPlayHead, MidiMessageCollector, ChangeBroadcaster, AsyncUpdater, Interpolators.
+
+### SmoothedValue — Parameter Smoothing
+
+Prevents audio glitches when parameters change:
+
+```cpp
+juce::SmoothedValue<float> smoothedGain;
+
+void prepareToPlay (double sr, int) override
+{
+    smoothedGain.reset (sr, 0.02);  // 20ms ramp
+    smoothedGain.setCurrentAndTargetValue (*gainParam);
+}
+
+void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) override
+{
+    smoothedGain.setTargetValue (*gainParam);
+    smoothedGain.applyGain (buffer);
+}
+```
+
+### AbstractFifo — Lock-Free FIFO
+
+Single-reader, single-writer FIFO for audio ↔ GUI communication:
+
+```cpp
+juce::AbstractFifo fifo (1024);
+
+// Writer (audio thread)
+auto writeScope = fifo.write (numItems);
+// write to buffer[startIndex1..blockSize1] and [startIndex2..blockSize2]
+
+// Reader (GUI thread)
+auto readScope = fifo.read (numWanted);
+// read from buffer[startIndex1..blockSize1] and [startIndex2..blockSize2]
+```
+
+### AudioPlayHead — Host Transport
+
+Query transport state (BPM, position, playing/recording) from the host:
+
+```cpp
+if (auto* playHead = getPlayHead())
+{
+    if (auto pos = playHead->getPosition())
+    {
+        bool playing = pos->getIsPlaying();
+        double bpm = pos->getBpm().orFallback (120.0);
+        double ppq = pos->getPpqPosition().orFallback (0.0);
+    }
+}
+```
+
+### MidiMessageCollector — MIDI Buffer Alignment
+
+Collects realtime MIDI and delivers timestamped blocks aligned with audio:
+
+```cpp
+juce::MidiMessageCollector collector;
+
+void prepareToPlay (double sr, int) override { collector.reset (sr); }
+
+// From MidiInput callback
+void handleIncomingMidiMessage (juce::MidiInput*, const juce::MidiMessage& msg) override
+{
+    collector.addMessageToQueue (msg);
+}
+
+// In processBlock
+juce::MidiBuffer midi;
+collector.removeNextBlockOfMessages (midi, buffer.getNumSamples());
+```
+
+---
+
+## 26. Testing with UnitTest
+
+> **Full reference**: `references/testing.md` — assertions, test runner, categories, CI integration.
+
+JUCE provides a built-in testing framework via `UnitTest`:
+
+```cpp
+class MyTest : public juce::UnitTest
+{
+public:
+    MyTest() : juce::UnitTest ("My Test", "Audio") {}
+
+    void runTest() override
+    {
+        beginTest ("Basic math");
+        expectEquals (1 + 1, 2);
+
+        beginTest ("Float precision");
+        expectWithinAbsoluteError (0.1f + 0.2f, 0.3f, 0.0001f);
+    }
+};
+
+static MyTest myTest;  // auto-register
+```
+
+```cpp
+// Run tests
+juce::UnitTestRunner runner;
+for (auto* test : juce::UnitTest::getAllTests())
+    runner.runTest (test);
+```
 
 ---
 
