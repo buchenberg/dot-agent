@@ -61,8 +61,10 @@ Requires PyYAML: `pip install pyyaml`
 - `conventional-commits` — Conventional Commits 1.0.0 reference
 - `cpp-coding-standards` — C++ coding standards based on the C++ Core Guidelines
 - `cpp-testing` — GoogleTest patterns, coverage, and sanitizer configuration
+- `graphics/opengl-reference` — OpenGL 4.x API and GLSL reference
 - `juce-audio-framework` — JUCE C++ audio plugin development
 - `juce-changelog` — JUCE framework changelog reference
+- `mlops/vllm-ubuntu-setup` — vLLM installation and configuration on Ubuntu for local LLM inference
 - `typespec` — TypeSpec API definition language — models, operations, decorators, HTTP bindings, OpenAPI emission
 
 ## Existing agents

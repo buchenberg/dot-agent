@@ -84,8 +84,10 @@ dot-agent/
 | [conventional-commits](skills/conventional-commits/) | Conventional Commits 1.0.0 reference — commit message format, breaking-change signaling, SemVer mapping, and commitlint-ready conventions. |
 | [cpp-coding-standards](skills/cpp-coding-standards/) | C++ coding standards based on the C++ Core Guidelines (isocpp.github.io). |
 | [cpp-testing](skills/cpp-testing/) | GoogleTest patterns, test structure, coverage, and sanitizer configuration for C++. |
+| [graphics/opengl-reference](skills/graphics/opengl-reference/) | OpenGL 4.x API and GLSL reference backed by the Khronos repository. |
 | [juce-audio-framework](skills/juce-audio-framework/) | JUCE C++ audio framework — plugin development (VST/AU/AAX), DSP chains, GUI/LookAndFeel, font rendering, OpenGL, MIDI, state management. |
 | [juce-changelog](skills/juce-changelog/) | JUCE framework changelog reference — breaking changes, new features, and deprecations across JUCE versions. |
+| [mlops/vllm-ubuntu-setup](skills/mlops/vllm-ubuntu-setup/) | vLLM installation and configuration on Ubuntu for local LLM inference. |
 | [typespec](skills/typespec/) | TypeSpec API definition language — models, operations, decorators, HTTP bindings, OpenAPI emission, server/client code generation. |
 
 ## Agents
