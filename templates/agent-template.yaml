@@ -1,0 +1,51 @@
+# Template for a new canonical agent definition.
+# Copy this file to <name>.agent.yaml and fill in the fields.
+# See _schema.yaml for full field documentation.
+
+name: my-agent
+description: "One-line description shown in agent pickers and menus"
+version: "1.0.0"
+category: general
+
+system_prompt: |
+  You are a [role/expertise].
+  
+  ## Core Responsibilities
+  - [What this agent does]
+  
+  ## Behavior
+  - [How it should operate]
+  
+  ## Constraints
+  - [What it must not do]
+
+voice: "Direct, constructive"
+
+model:
+  preference:
+    - default
+  temperature: 0.3
+
+tools:
+  allow:
+    - read_file
+    - search_files
+    - terminal
+    - web_search
+  deny:
+    - write_file
+    - patch
+
+modes:
+  primary: false
+  subagent: true
+  interactive: true
+  autonomous: false
+
+# Optional per-harness customizations
+# harness_overrides:
+#   claude_code:
+#     tools:
+#       deny: ["Bash", "Write"]
+#   kilo:
+#     mode: "subagent"

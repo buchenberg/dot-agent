@@ -1,33 +1,79 @@
 # dot-agent
 
-A curated collection of **generic, reusable agent skills** — procedural knowledge packs that any AI coding agent (Copilot, Claude Code, Codex, Hermes, etc.) can load to work smarter on common tasks.
+A curated, **harness-agnostic** collection of reusable content for AI coding agents — skills, agent personas, rules, commands, context docs, and hooks — with adapters that compile everything to native formats for Claude Code, GitHub Copilot, Kilo Code, OpenCode, Hermes, and Cursor.
+
+## Content Types
+
+| Type | Directory | What it defines |
+|------|-----------|-----------------|
+| **Skills** | `skills/` | Procedural knowledge — patterns, pitfalls, step-by-step workflows (what the agent knows) |
+| **Agents** | `agents/` | Persona definitions — system prompt, tool permissions, model preferences (who the agent is) |
+| **Rules** | `rules/` | Coding guidelines and repo conventions (how the agent should behave) |
+| **Commands** | `commands/` | Slash commands and reusable prompt templates |
+| **Context** | `context/` | Reference docs, architecture context, domain glossaries |
+| **Hooks** | `hooks/` | Lifecycle hooks — pre-commit, post-tool-use, session start |
+
+Each content type lives in a canonical format at the repo root. The `adapters/sync.py` script compiles everything to native harness formats in `dist/`, or installs directly to the right locations.
+
+## Supported Harnesses
+
+| Harness | Agents | Skills | Rules | Commands |
+|---------|--------|--------|-------|----------|
+| Claude Code | `.claude/agents/*.md` | `.claude/skills/` | `.claude/rules/*.md` | `.claude/commands/*.md` |
+| GitHub Copilot | `.github/agents/*.agent.md` | `.agents/skills/` | `.github/copilot-instructions.md` | `.github/prompts/*.md` |
+| Kilo Code | `~/.agents/*.agent.json` | `.agent/skills/` | `.kilo/rules/*.md` | — |
+| OpenCode | JSON entries | `.opencode/skills/` | `.opencode/instructions.md` | `.opencode/commands/` |
+| Hermes | Subagent refs | `~/.agents/skills/` | `AGENTS.md` | — |
+| Cursor | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | `.cursor/rules/*.mdc` | `.cursor/commands/` |
+
+## Quick Start
+
+```bash
+# See what content exists
+python adapters/sync.py --list
+
+# Emit everything to dist/
+python adapters/sync.py
+
+# Emit one content type or harness
+python adapters/sync.py --content agents
+python adapters/sync.py --harness claude_code
+
+# Install to native locations (~/.claude/, ~/.agents/, etc.)
+python adapters/sync.py --install
+
+# Validate all definitions without writing
+python adapters/sync.py --validate
+```
 
 ## Philosophy
 
-Skills in this repo are **domain-agnostic**. They contain the patterns, pitfalls, and step-by-step workflows that agents need — without any company-specific class names, internal project references, or sensitive data. If a skill was originally born from a real project, it has been sanitized so the *technique* survives but the *domain dressing* is replaced with vanilla examples.
+All content is **domain-agnostic** and sanitized. No company-specific class names, internal project references, or sensitive data. If content was originally born from a real project, it has been sanitized so the *technique* survives but the *domain dressing* is replaced with vanilla examples.
 
 ## Structure
 
 ```
 dot-agent/
-├── skills/
+├── skills/                    # Procedural knowledge packs
 │   ├── <skill-name>/
-│   │   ├── SKILL.md          # The skill definition (frontmatter + markdown)
-│   │   └── references/       # Optional supporting docs, templates, scripts
-│   └── ...
+│   │   ├── SKILL.md          #   frontmatter + markdown
+│   │   └── references/       #   optional supporting docs
+│   └── <category>/<skill>/   #   categorized skills (graphics/, mlops/)
+├── agents/                    # Canonical agent personas
+│   ├── _schema.yaml          # Schema reference
+│   └── <name>.agent.yaml     # One YAML file per agent
+├── rules/                     # Coding conventions and guidelines
+├── commands/                  # Slash commands / prompt templates
+├── context/                   # Architecture and domain reference docs
+├── hooks/                     # Lifecycle hooks
+├── adapters/                  # Sync engine
+│   ├── sync.py               #   compiles all content → native formats
+│   └── README.md             #   adapter docs + tool mapping
+├── templates/                 # Templates for new content
 ├── .agent/
 │   └── skills/
-│       └── sanitize-skill/   # Meta-skill: instructions for generic-ifying skills
-│           └── SKILL.md
+│       └── sanitize-skill/   # Meta-skill: generic-ify before sharing
 └── README.md
-```
-
-Each skill lives in its own folder under `skills/` with a `SKILL.md` file that follows the standard frontmatter format:
-
-```yaml
----
-description: Short description and WHEN triggers for the skill.
----
 ```
 
 ## Skills
@@ -36,7 +82,19 @@ description: Short description and WHEN triggers for the skill.
 |-------|-------------|
 | [autofixture-xunit-dotnet](skills/autofixture-xunit-dotnet/) | AutoFixture + xUnit patterns — specimen builders, customizations, and AutoData extensions for .NET tests. |
 | [conventional-commits](skills/conventional-commits/) | Conventional Commits 1.0.0 reference — commit message format, breaking-change signaling, SemVer mapping, and commitlint-ready conventions. |
+| [graphics/opengl-reference](skills/graphics/opengl-reference/) | OpenGL 4.x API and GLSL reference backed by the Khronos repository. |
 | [juce-audio-framework](skills/juce-audio-framework/) | JUCE C++ audio framework — plugin development (VST/AU/AAX), DSP chains, GUI/LookAndFeel, font rendering, OpenGL, MIDI, state management. |
+| [mlops/vllm-ubuntu-setup](skills/mlops/vllm-ubuntu-setup/) | vLLM installation and configuration on Ubuntu for local LLM inference. |
+
+## Agents
+
+Agent definitions live in `agents/<name>.agent.yaml` (canonical YAML) and are compiled to native harness formats via `adapters/sync.py`.
+
+| Agent | Description |
+|-------|-------------|
+| [architect](agents/architect.agent.yaml) | Stress-test technical designs and produce implementation-ready plans. |
+
+See `agents/_schema.yaml` for the full schema and `templates/agent-template.yaml` for a blank template.
 
 ## Sanitization
 
@@ -75,6 +133,8 @@ If Actions in your repo/org cannot create PRs with `GITHUB_TOKEN`, add a PAT sec
 ## Contributing
 
 1. Fork and branch.
-2. Add your skill under `skills/<skill-name>/`.
-3. Run the sanitization skill against it (or ask your agent to).
-4. Submit a PR.
+2. Add content under the appropriate directory (`skills/`, `agents/`, `rules/`, `commands/`, `context/`, or `hooks/`).
+3. If adding skills or agents, run the sanitization skill against them first (or ask your agent to).
+4. Validate: `python adapters/sync.py --validate`
+5. Test emission: `python adapters/sync.py`
+6. Submit a PR.

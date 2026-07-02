@@ -1,0 +1,49 @@
+# Canonical Agent Schema for dot-agent
+# This defines the source-of-truth format for agent definitions.
+# Adapters in ../adapters/ transform this into native harness formats.
+
+# Required fields
+name: string           # kebab-case identifier (e.g. "code-reviewer")
+description: string    # Short description — shown in agent pickers
+system_prompt: string  # Full system prompt / persona instructions
+
+# Optional fields
+version: string        # Semver for tracking changes (default: "1.0.0")
+category: string       # Grouping: code-quality, planning, devops, etc.
+voice: string          # Tone guidance: "Direct, constructive, evidence-based"
+
+# Model preferences (ordered — first available wins)
+model:
+  preference:           # e.g. ["claude-sonnet-4", "gpt-5", "default"]
+    - default
+  temperature: number   # 0.0–1.0 (optional, harness-specific default if omitted)
+
+# Tool permissions — canonical tool names (mapped per-harness by adapters)
+tools:
+  allow: []             # Canonical tool names to permit
+  deny: []              # Canonical tool names to block
+  # Canonical tool names:
+  #   read_file, search_files, write_file, patch
+  #   terminal, web_search, web_fetch
+  #   mcp, skill, lsp
+  #   task (delegate/spawn subagents)
+  #   question (ask user for input)
+  #   plan (create/edit plan files)
+  #   todo (read/write task lists)
+
+# Operational modes
+modes:
+  primary: false        # Can operate as the main/primary agent
+  subagent: true        # Can be spawned as a subagent
+  interactive: true     # Works well in interactive chat sessions
+  autonomous: false     # Suitable for headless/cron/CI runs
+
+# Per-harness overrides (optional — merged into adapter output)
+# Keys match adapter names: claude_code, copilot, kilo, opencode, hermes
+harness_overrides:
+  claude_code:
+    # Override Claude Code-specific fields (tools use Claude tool names)
+    tools:
+      deny: ["Bash", "Write"]
+  kilo:
+    mode: "subagent"    # primary | subagent
