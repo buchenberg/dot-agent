@@ -152,7 +152,9 @@ def load_content(ct):
             d["_src"] = p
             items.append(d)
         elif ct == "skills":
-            items.append({"name": name, "_path": p, "_dir": p.parent})
+            fm, _ = parse_frontmatter(p.read_text(encoding="utf-8"))
+            items.append({"name": name, "_path": p, "_dir": p.parent,
+                          "description": (fm or {}).get("description", "")})
         else:
             fm, body = parse_frontmatter(p.read_text(encoding="utf-8"))
             items.append({"name": name, "frontmatter": fm or {}, "body": body, "_path": p})
@@ -189,7 +191,7 @@ def emit_agent_kilo(agent, out):
     perm = {
         "read": "allow",
         "bash": "deny" if "bash" in tools["deny"] else "allow",
-        "edit": {"*": "allow"},
+        "edit": {"*": "deny"} if "edit" in tools["deny"] else {"*": "allow"},
         "mcp": "deny" if "mcp" in tools["deny"] else "allow",
         "question": "allow" if modes.get("interactive", True) else "deny",
         "webfetch": "allow" if "webfetch" in tools["allow"] else "deny",
@@ -197,8 +199,6 @@ def emit_agent_kilo(agent, out):
         "glob": "allow", "grep": "allow",
         "task": "allow" if modes.get("subagent", True) else "deny",
     }
-    for t in tools["deny"]:
-        perm["edit"][f"*{t}*"] = "deny"
     doc = {
         "name": a["name"], "prompt": a["system_prompt"],
         "description": a["description"],

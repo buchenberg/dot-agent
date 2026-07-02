@@ -1,5 +1,5 @@
 ---
-description: Conventional Commits 1.0.0 for clear, machine-readable commit messages with SemVer alignment. Use when writing commit messages, squashing PRs, configuring commitlint, or generating changelogs. WHEN: conventional commits, commit message format, feat, fix, chore, docs, style, refactor, perf, test, ci, build, revert, BREAKING CHANGE, semantic versioning, changelog, commitlint.
+description: "Conventional Commits 1.0.0 for clear, machine-readable commit messages with SemVer alignment. Use when writing commit messages, squashing PRs, configuring commitlint, or generating changelogs. WHEN: conventional commits, commit message format, feat, fix, chore, docs, style, refactor, perf, test, ci, build, revert, BREAKING CHANGE, semantic versioning, changelog, commitlint."
 ---
 
 # Conventional Commits (v1.0.0)

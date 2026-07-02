@@ -82,9 +82,11 @@ dot-agent/
 |-------|-------------|
 | [autofixture-xunit-dotnet](skills/autofixture-xunit-dotnet/) | AutoFixture + xUnit patterns — specimen builders, customizations, and AutoData extensions for .NET tests. |
 | [conventional-commits](skills/conventional-commits/) | Conventional Commits 1.0.0 reference — commit message format, breaking-change signaling, SemVer mapping, and commitlint-ready conventions. |
-| [graphics/opengl-reference](skills/graphics/opengl-reference/) | OpenGL 4.x API and GLSL reference backed by the Khronos repository. |
+| [cpp-coding-standards](skills/cpp-coding-standards/) | C++ coding standards based on the C++ Core Guidelines (isocpp.github.io). |
+| [cpp-testing](skills/cpp-testing/) | GoogleTest patterns, test structure, coverage, and sanitizer configuration for C++. |
 | [juce-audio-framework](skills/juce-audio-framework/) | JUCE C++ audio framework — plugin development (VST/AU/AAX), DSP chains, GUI/LookAndFeel, font rendering, OpenGL, MIDI, state management. |
-| [mlops/vllm-ubuntu-setup](skills/mlops/vllm-ubuntu-setup/) | vLLM installation and configuration on Ubuntu for local LLM inference. |
+| [juce-changelog](skills/juce-changelog/) | JUCE framework changelog reference — breaking changes, new features, and deprecations across JUCE versions. |
+| [typespec](skills/typespec/) | TypeSpec API definition language — models, operations, decorators, HTTP bindings, OpenAPI emission, server/client code generation. |
 
 ## Agents
 
@@ -93,6 +95,8 @@ Agent definitions live in `agents/<name>.agent.yaml` (canonical YAML) and are co
 | Agent | Description |
 |-------|-------------|
 | [architect](agents/architect.agent.yaml) | Stress-test technical designs and produce implementation-ready plans. |
+| [juce-developer](agents/juce-developer.agent.yaml) | Expert C++ DSP and JUCE developer — builds audio plugins, standalone apps, and DSP chains with modern C++ and solid testing practices. |
+| [typespec-developer](agents/typespec-developer.agent.yaml) | Expert TypeSpec API designer — authors .tsp definitions, models, operations, interfaces, templates, and decorators for OpenAPI, JSON Schema, Protobuf, and HTTP client/server code generation. |
 
 See `agents/_schema.yaml` for the full schema and `templates/agent-template.yaml` for a blank template.
 

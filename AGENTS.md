@@ -57,12 +57,16 @@ Requires PyYAML: `pip install pyyaml`
 
 ## Existing skills
 
-- `conventional-commits` — Conventional Commits 1.0.0 reference
 - `autofixture-xunit-dotnet` — AutoFixture + xUnit patterns for .NET tests
-- `graphics/opengl-reference` — OpenGL 4.x API and GLSL reference
+- `conventional-commits` — Conventional Commits 1.0.0 reference
+- `cpp-coding-standards` — C++ coding standards based on the C++ Core Guidelines
+- `cpp-testing` — GoogleTest patterns, coverage, and sanitizer configuration
 - `juce-audio-framework` — JUCE C++ audio plugin development
-- `mlops/vllm-ubuntu-setup` — vLLM installation on Ubuntu
+- `juce-changelog` — JUCE framework changelog reference
+- `typespec` — TypeSpec API definition language — models, operations, decorators, HTTP bindings, OpenAPI emission
 
 ## Existing agents
 
 - `architect` — plan-focused agent (read-only: read/search/plan/todo/question only, no write/patch/terminal)
+- `juce-developer` — expert C++ DSP and JUCE developer for audio plugins and standalone apps
+- `typespec-developer` — expert TypeSpec API designer for OpenAPI, JSON Schema, and HTTP client/server generation
