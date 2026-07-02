@@ -1,0 +1,6 @@
+# Generated output from sync.py
+dist/
+
+# Python
+__pycache__/
+*.pyc
