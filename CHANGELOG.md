@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/buchenberg/dot-agent/compare/v0.4.0...v0.4.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* package full dist/ output in release asset ([71b63d3](https://github.com/buchenberg/dot-agent/commit/71b63d3c01f016903327673e9074ce1dbaf5ba80))
+
 ## [0.4.0](https://github.com/buchenberg/dot-agent/compare/v0.3.0...v0.4.0) (2026-07-03)
 
 
