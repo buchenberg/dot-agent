@@ -118,13 +118,13 @@ Copy a skill folder into your agent's skill directory, or reference it from your
 
 ## CI and Releases
 
-This repository uses GitHub Actions plus Conventional Commits to automate versioning, tagging, releases, and skill packaging.
+This repository uses GitHub Actions plus Conventional Commits to automate versioning, tagging, releases, and dist packaging.
 
 - Workflow: [.github/workflows/auto-release.yml](.github/workflows/auto-release.yml)
 - Trigger: push to `main`
 - Versioning: Conventional Commits (`feat`, `fix`, and `!` / `BREAKING CHANGE`)
 - Release automation: Release Please opens/updates a release PR, then creates tag + GitHub Release when merged
-- Release asset: a zip that maps `skills/` to `.agent/skills/` (`dot-agent-skills-<tag>.zip`)
+- Release asset: `dot-agent-dist-<tag>.zip` — the full `dist/` output of `adapters/sync.py` (skills, rules, commands, context, hooks, and per-harness agents), built and uploaded by [auto-release.yml](.github/workflows/auto-release.yml) when a release is created
 
 ### Changelog Automation
 

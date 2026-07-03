@@ -32,43 +32,43 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     env:
       TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-      ASSET_NAME: dot-agent-skills-${{ needs.release-please.outputs.tag_name }}.zip
+      ASSET_NAME: dot-agent-dist-${{ needs.release-please.outputs.tag_name }}.zip
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build .agent/skills package structure
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Build dist/
         shell: bash
         run: |
           set -euo pipefail
+          python adapters/sync.py --clean
 
-          package_root="dist/package"
-          target_skills_dir="$package_root/.agent/skills"
-          source_skills_dir="skills"
-
-          if [ ! -d "$source_skills_dir" ]; then
-            echo "Expected source directory '$source_skills_dir' not found."
+          if [ ! -d "dist" ]; then
+            echo "sync.py did not produce a dist/ directory."
             exit 1
           fi
 
-          mkdir -p "$target_skills_dir"
-          cp -R "$source_skills_dir"/. "$target_skills_dir/"
-
-          echo "Packaged skill directories:"
-          find "$target_skills_dir" -mindepth 1 -maxdepth 1 -type d -printf "- %f\n" | sort
+          echo "Built dist/ contents:"
+          find dist -mindepth 1 -maxdepth 2 -printf "%y %p\n" | sort
 
       - name: Create zip asset
         shell: bash
         run: |
           set -euo pipefail
-
-          cd dist/package
-          zip -r "../${ASSET_NAME}" ".agent"
+          zip -r "${ASSET_NAME}" dist
 
       - name: Upload zip to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          files: dist/${{ env.ASSET_NAME }}
+          files: ${{ env.ASSET_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
