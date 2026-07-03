@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/buchenberg/dot-agent/compare/v0.4.1...v0.5.0) (2026-07-03)
+
+
+### Features
+
+* reorganize repo ([f9c4e56](https://github.com/buchenberg/dot-agent/commit/f9c4e56fda688891701c5e07dc8fa996628953d2))
+* reorganize repo ([9bb4769](https://github.com/buchenberg/dot-agent/commit/9bb4769c346dd9a832017d681a186452a68584d1))
+
 ## [0.4.1](https://github.com/buchenberg/dot-agent/compare/v0.4.0...v0.4.1) (2026-07-03)
 
 
