@@ -1,5 +1,5 @@
 ---
-name: vllm-ubuntu-setup
+name: mlops/vllm-ubuntu-setup
 description: >
   Complete guide to installing and configuring vLLM on Ubuntu for high-throughput
   LLM inference. Covers GPU setup, Python environment creation, vLLM installation,

@@ -44,7 +44,7 @@ Requires PyYAML: `pip install pyyaml`
 - All content is **domain-agnostic and sanitized**. No company-specific names, internal project references, or sensitive data.
 - Content compiled from canonical to native per-harness: skills/rules/context/hooks are **shared** (identical output, written once to `dist/shared/`); agents are **per-harness** (unique output per harness).
 - `dist/` is gitignored — it is generated output only.
-- CI: GitHub Actions on push to `main`. Release Please (Conventional Commits) opens release PRs. Tags and GitHub Releases are created on merge. Release asset: `dot-agent-skills-<tag>.zip` mapping `skills/` → `.agent/skills/`.
+- CI: GitHub Actions on push to `main`. Release Please (Conventional Commits) opens release PRs. Tags and GitHub Releases are created on merge. Release asset: `dot-agent-dist-<tag>.zip` packaging the full `dist/` output of `adapters/sync.py`.
 - Canonical tool names: `read_file`, `search_files`, `write_file`, `patch`, `terminal`, `web_search`, `web_fetch`, `mcp`, `task`, `question`, `plan`, `todo`. Mapped per-harness by `adapters/sync.py`.
 
 ## Adding or editing content

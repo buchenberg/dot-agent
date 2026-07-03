@@ -1,4 +1,5 @@
 ---
+name: typespec
 description: "TypeSpec API definition language — models, operations, interfaces, templates, decorators, HTTP/REST bindings, OpenAPI emission, server/client code generation, and best practices. Use when authoring, reviewing, or compiling TypeSpec (.tsp) files or designing APIs with TypeSpec. WHEN: TypeSpec, typespec, tsp, .tsp, API design, API definition, OpenAPI, openapi3, model, operation, interface, decorator, emitter, JSON Schema, Protobuf, gRPC, HTTP API, REST API, @typespec, tspconfig, tsp compile, tsp init, tsp format."
 ---
 

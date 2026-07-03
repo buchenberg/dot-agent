@@ -1,4 +1,5 @@
 ---
+name: juce-changelog
 description: "JUCE framework changelog from 6.0.0 through 8.0.14 — major features, breaking changes, migration notes, and module evolution. Use when writing or reviewing JUCE code to ensure API compatibility, understanding version requirements, or planning upgrades. WHEN: JUCE, API changes, breaking changes, upgrade, migration, what version added, when was X introduced, deprecation, removed API, changelog."
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: autofixture-xunit-dotnet
 description: "AutoFixture + xUnit patterns for .NET tests — custom ISpecimenBuilder, ICustomization, and extending AutoDataAttribute / InlineAutoDataAttribute. Use when authoring or refactoring xUnit tests that need anonymous test data, parameter-name-targeted specimen generation, or shared customization across many tests. WHEN: AutoFixture, AutoData, InlineAutoData, ISpecimenBuilder, ICustomization, specimen builder, anonymous test data, fixture.Customize, custom AutoDataAttribute, .NET unit tests, xUnit theory data, refactor tests to AutoFixture, generate test data, test data builder."
 ---
 

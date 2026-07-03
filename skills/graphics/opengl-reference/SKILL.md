@@ -1,5 +1,5 @@
 ---
-name: opengl-reference
+name: graphics/opengl-reference
 description: >
   Comprehensive OpenGL 4.x API and GLSL reference skill backed by the Khronos
   OpenGL-Refpages repository. Covers the full OpenGL 4.x pipeline (currently 4.6),
