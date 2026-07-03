@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python adapters/sync.py --clean
+          python tooling/sync.py --clean
 
           if [ ! -d "dist" ]; then
             echo "sync.py did not produce a dist/ directory."

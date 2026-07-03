@@ -7,13 +7,13 @@ Identical output across harnesses goes to dist/shared/ (written once).
 Harness-specific output goes to dist/<harness>/ (agents for everyone, .mdc for cursor).
 
 Usage:
-    python adapters/sync.py                              # Emit everything
-    python adapters/sync.py --content agents             # Only agents
-    python adapters/sync.py --harness claude_code        # Only Claude Code
-    python adapters/sync.py --install                    # Install natively
-    python adapters/sync.py --validate                   # Validate only
-    python adapters/sync.py --list                       # List all content
-    python adapters/sync.py --clean                      # Wipe dist/ first
+    python tooling/sync.py                              # Emit everything
+    python tooling/sync.py --content agents             # Only agents
+    python tooling/sync.py --harness claude_code        # Only Claude Code
+    python tooling/sync.py --install                    # Install natively
+    python tooling/sync.py --validate                   # Validate only
+    python tooling/sync.py --list                       # List all content
+    python tooling/sync.py --clean                      # Wipe dist/ first
 """
 
 import argparse
@@ -34,12 +34,12 @@ DIST_DIR = REPO_ROOT / "dist"
 # ═══ CONFIGURATION ════════════════════════════════════════════════════
 
 CONTENT_TYPES = {
-    "agents":   {"dir": "agents",   "glob": "*.agent.yaml"},
-    "skills":   {"dir": "skills",   "glob": "**/SKILL.md"},
-    "rules":    {"dir": "rules",    "glob": "*.md"},
-    "commands": {"dir": "commands", "glob": "*.md"},
-    "context":  {"dir": "context",  "glob": "*.md"},
-    "hooks":    {"dir": "hooks",    "glob": "*"},
+    "agents":   {"dir": "content/agents",   "glob": "*.agent.yaml"},
+    "skills":   {"dir": "content/skills",   "glob": "**/SKILL.md"},
+    "rules":    {"dir": "content/rules",    "glob": "*.md"},
+    "commands": {"dir": "content/commands", "glob": "*.md"},
+    "context":  {"dir": "content/context",  "glob": "*.md"},
+    "hooks":    {"dir": "content/hooks",    "glob": "*"},
 }
 
 HARNESSES = ["claude_code", "copilot", "kilo", "opencode", "hermes", "cursor"]

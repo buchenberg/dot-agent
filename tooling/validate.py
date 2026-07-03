@@ -1,197 +1,236 @@
 #!/usr/bin/env python3
 """
-validate_skills.py - Validates SKILL.md files in the skills/ directory.
+validate.py - Single source of truth for content validation.
 
-Checks:
-  1. File has YAML frontmatter (--- ... ---)
-  2. 'name' field is present and non-empty
-  3. 'name' matches the skill's directory name
-  4. 'description' field is present and non-empty
-  5. 'description' contains a WHEN: trigger section (warning, not error)
-  6. File has a body (content after frontmatter)
+Validates every canonical content file:
+  - content/agents/*.agent.yaml   (schema, tools, harness overrides, ...)
+  - content/skills/**/SKILL.md    (frontmatter, name, description, body)
+  - content/{rules,commands,context,hooks}/*.md  (frontmatter, body)
 
-Exit code 0 = all checks passed (or only warnings).
-Exit code 1 = one or more errors.
+Exposes per-file check_* functions returning (errors, warnings) so the pytest
+suite can assert without duplicating logic.
 
 Usage:
-    python scripts/validate_skills.py
-    python scripts/validate_skills.py --warn-as-error
-    python scripts/validate_skills.py --fix          # auto-add missing 'name' field
+    python tooling/validate.py                # validate everything
+    python tooling/validate.py --warn-as-error
+    python tooling/validate.py --fix          # auto-repair missing skill 'name'
+    python tooling/validate.py --content skills
 """
+from __future__ import annotations
 
 import argparse
 import re
 import sys
 from pathlib import Path
 
-try:
-    import yaml
-except ImportError:
-    print("ERROR: PyYAML required.  pip install pyyaml", file=sys.stderr)
-    sys.exit(1)
+import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+# Reuse the compiler's parser + config so there is one definition of truth.
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+import sync  # noqa: E402  (sibling module: tooling/sync.py)
 
-ANSI = {
-    "red":    "\033[31m",
-    "yellow": "\033[33m",
-    "green":  "\033[32m",
-    "bold":   "\033[1m",
-    "reset":  "\033[0m",
-}
+REPO_ROOT = _HERE.parent
+CONTENT_ROOT = REPO_ROOT / "content"
 
+VALID_TOOLS = set(sync.CANONICAL_TOOLS) | {"skill", "lsp"}
+VALID_HARNESSES = set(sync.HARNESSES)
+REQUIRED_AGENT_FIELDS = ("name", "description", "system_prompt")
+KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")
 
-def color(text: str, *codes: str) -> str:
-    if not sys.stdout.isatty():
-        return text
-    prefix = "".join(ANSI[c] for c in codes)
-    return f"{prefix}{text}{ANSI['reset']}"
+MD_CATEGORIES = ("rules", "commands", "context", "hooks")
 
 
-def parse_frontmatter(text: str):
-    """Return (dict | None, body_str).  dict is None if frontmatter is missing/broken."""
-    if not text.startswith("---"):
-        return None, text
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return None, text
-    try:
-        fm = yaml.safe_load(parts[1])
-        body = parts[2].lstrip("\n")
-        return (fm if isinstance(fm, dict) else {}), body
-    except yaml.YAMLError as exc:
-        return None, text
+# ═══════════════════════════════════════════════════════════════════════
+# Loaders — each returns a list of lightweight records.
+# ═══════════════════════════════════════════════════════════════════════
+
+def load_agents():
+    out = []
+    d = CONTENT_ROOT / "agents"
+    for p in sorted(d.glob("*.agent.yaml")):
+        if p.name == "_schema.yaml":
+            continue
+        with open(p, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        out.append((p, data if isinstance(data, dict) else {}))
+    return out
 
 
-def skill_name_from_path(skill_md: Path) -> str:
-    """Derive the canonical skill name from its directory path relative to skills/."""
-    rel = skill_md.parent.relative_to(SKILLS_DIR)
-    # Use forward slashes for nested skills (e.g. graphics/opengl-reference)
-    return str(rel).replace("\\", "/")
+def load_skills():
+    out = []
+    d = CONTENT_ROOT / "skills"
+    for p in sorted(d.rglob("SKILL.md")):
+        rel = p.parent.relative_to(d).as_posix()
+        fm, body = sync.parse_frontmatter(p.read_text(encoding="utf-8"))
+        out.append((rel, p, fm or {}, body))
+    return out
 
 
-def validate_skill(path: Path, warn_as_error: bool, fix: bool) -> tuple[int, int]:
-    """Validate a single SKILL.md. Returns (error_count, warning_count)."""
-    errors: list[str] = []
-    warnings: list[str] = []
+def load_md(category):
+    out = []
+    d = CONTENT_ROOT / category
+    if not d.exists():
+        return out
+    for p in sorted(d.rglob("*.md")):
+        if p.stem == "README":
+            continue
+        fm, body = sync.parse_frontmatter(p.read_text(encoding="utf-8"))
+        out.append((p, fm or {}, body))
+    return out
 
-    text = path.read_text(encoding="utf-8")
-    fm, body = parse_frontmatter(text)
-    expected_name = skill_name_from_path(path)
 
-    # ── Check 1: frontmatter present ──────────────────────────────────
-    if fm is None:
+# ═══════════════════════════════════════════════════════════════════════
+# Checkers — return (errors: list[str], warnings: list[str]).
+# ═══════════════════════════════════════════════════════════════════════
+
+def check_agent(path: Path, agent: dict, warn_as_error: bool = False):
+    errors, warnings = [], []
+    name = path.name.removesuffix(".agent.yaml")
+
+    missing = [f for f in REQUIRED_AGENT_FIELDS if not agent.get(f)]
+    if missing:
+        errors.append(f"missing required fields {missing}")
+
+    if agent.get("name") and not KEBAB_RE.match(str(agent["name"])):
+        errors.append(f"name '{agent['name']}' must be kebab-case")
+    if agent.get("name") and agent["name"] != name:
+        errors.append(f"name '{agent.get('name')}' should match filename '{name}'")
+
+    for f in REQUIRED_AGENT_FIELDS:
+        v = agent.get(f)
+        if v is not None and not (isinstance(v, str) and v.strip()):
+            errors.append(f"field '{f}' must be a non-empty string")
+
+    tools = agent.get("tools") or {}
+    for key in ("allow", "deny"):
+        for t in (tools.get(key) or []):
+            if t not in VALID_TOOLS:
+                errors.append(f"unknown tool '{t}' in tools.{key}; valid: {sorted(VALID_TOOLS)}")
+
+    for h in (agent.get("harness_overrides") or {}):
+        if h not in VALID_HARNESSES:
+            errors.append(f"unknown harness '{h}' in harness_overrides; valid: {sorted(VALID_HARNESSES)}")
+
+    model = agent.get("model") or {}
+    prefs = model.get("preference")
+    if prefs is not None and not (isinstance(prefs, list) and prefs):
+        errors.append("model.preference must be a non-empty list")
+
+    for k, v in (agent.get("modes") or {}).items():
+        if not isinstance(v, bool):
+            errors.append(f"modes.{k} must be boolean, got {v!r}")
+
+    version = agent.get("version")
+    if version and not SEMVER_RE.match(str(version)):
+        errors.append(f"version '{version}' should look like semver (x.y.z)")
+
+    return errors, warnings
+
+
+def check_skill(rel: str, path: Path, fm: dict, body: str, warn_as_error: bool = False, fix: bool = False):
+    errors, warnings = [], []
+
+    if not fm:
         errors.append("missing or malformed YAML frontmatter (--- ... ---)")
-        _report(path, errors, warnings, warn_as_error)
-        return len(errors), len(warnings)
+        return errors, warnings
 
-    # ── Check 2: 'name' present ────────────────────────────────────────
     name_val = fm.get("name", "")
     if not name_val:
         if fix:
-            _apply_fix(path, text, expected_name)
-            warnings.append(f"'name' was missing — auto-set to '{expected_name}'")
+            _fix_skill_name(path, rel)
+            warnings.append(f"'name' was missing — auto-set to '{rel}'")
         else:
-            errors.append(f"'name' field missing; expected '{expected_name}'")
+            errors.append(f"'name' field missing; expected '{rel}'")
+    elif str(name_val) != rel:
+        errors.append(f"'name' mismatch: frontmatter has '{name_val}', directory implies '{rel}'")
 
-    # ── Check 3: 'name' matches directory ─────────────────────────────
-    elif str(name_val) != expected_name:
-        errors.append(
-            f"'name' mismatch: frontmatter has '{name_val}', "
-            f"directory implies '{expected_name}'"
-        )
-
-    # ── Check 4: 'description' present ────────────────────────────────
-    desc_val = fm.get("description", "")
-    if not desc_val:
+    desc = fm.get("description", "")
+    if not desc:
         errors.append("'description' field missing or empty")
-    else:
-        # ── Check 5: WHEN: trigger keywords ───────────────────────────
-        if "WHEN:" not in str(desc_val):
-            msg = "'description' has no WHEN: trigger keywords (aids routing)"
-            if warn_as_error:
-                errors.append(msg)
-            else:
-                warnings.append(msg)
+    elif "WHEN:" not in str(desc):
+        msg = "'description' has no WHEN: trigger keywords (aids routing)"
+        (errors if warn_as_error else warnings).append(msg)
 
-    # ── Check 6: body content ─────────────────────────────────────────
     if not body.strip():
         errors.append("file has no body content after frontmatter")
+    elif not any(ln.lstrip().startswith("#") for ln in body.splitlines()):
+        warnings.append("body has no Markdown heading")
 
-    _report(path, errors, warnings, warn_as_error)
-    return len(errors), len(warnings)
-
-
-def _report(path: Path, errors: list[str], warnings: list[str], warn_as_error: bool) -> None:
-    rel = path.relative_to(REPO_ROOT)
-    if not errors and not warnings:
-        print(f"  {color('OK', 'green')}  {rel}")
-        return
-
-    print(f"  {color('FAIL', 'red') if errors else color('WARN', 'yellow')}  {rel}")
-    for msg in errors:
-        print(f"       {color('error:', 'red', 'bold')} {msg}")
-    for msg in warnings:
-        print(f"       {color('warn: ', 'yellow')} {msg}")
+    return errors, warnings
 
 
-def _apply_fix(path: Path, original_text: str, name: str) -> None:
-    """Insert 'name: <name>' as the first key in the frontmatter block."""
-    # Replace the opening --- with --- + name line
-    fixed = re.sub(
-        r"^---\n",
-        f"---\nname: {name}\n",
-        original_text,
-        count=1,
-    )
+def check_md(path: Path, fm: dict, body: str, warn_as_error: bool = False):
+    errors, warnings = [], []
+    text = path.read_text(encoding="utf-8")
+    if text.startswith("---") and not isinstance(fm, dict):
+        errors.append("frontmatter must parse as a YAML mapping")
+    if not body.strip():
+        errors.append("file body must not be empty")
+    return errors, warnings
+
+
+def _fix_skill_name(path: Path, name: str) -> None:
+    fixed = re.sub(r"^---\n", f"---\nname: {name}\n", path.read_text(encoding="utf-8"), count=1)
     path.write_text(fixed, encoding="utf-8")
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Validate SKILL.md files.")
-    ap.add_argument(
-        "--warn-as-error",
-        action="store_true",
-        help="Treat warnings (e.g. missing WHEN:) as errors.",
-    )
-    ap.add_argument(
-        "--fix",
-        action="store_true",
-        help="Auto-insert missing 'name' field derived from directory name.",
-    )
-    args = ap.parse_args()
+# ═══════════════════════════════════════════════════════════════════════
+# CLI
+# ═══════════════════════════════════════════════════════════════════════
 
-    skill_files = sorted(SKILLS_DIR.glob("**/SKILL.md"))
-    if not skill_files:
-        print(f"No SKILL.md files found under {SKILLS_DIR}")
-        return 0
+def _run(warn_as_error: bool, fix: bool, only: str | None) -> int:
+    total_e = total_w = 0
 
-    print(f"{color('Validating', 'bold')} {len(skill_files)} skill file(s)...\n")
+    if only in (None, "agents"):
+        for path, agent in load_agents():
+            e, w = check_agent(path, agent, warn_as_error)
+            total_e += len(e); total_w += len(w)
+            _report(path, e, w)
 
-    total_errors = 0
-    total_warnings = 0
-    for sf in skill_files:
-        e, w = validate_skill(sf, args.warn_as_error, args.fix)
-        total_errors += e
-        total_warnings += w
+    if only in (None, "skills"):
+        for rel, path, fm, body in load_skills():
+            e, w = check_skill(rel, path, fm, body, warn_as_error, fix)
+            total_e += len(e); total_w += len(w)
+            _report(path, e, w)
 
-    print()
-    if total_errors == 0 and total_warnings == 0:
-        print(color("All skills are valid.", "green", "bold"))
-    elif total_errors == 0:
-        print(color(f"{total_warnings} warning(s), 0 errors.", "yellow", "bold"))
+    if only in (None, "md"):
+        for cat in MD_CATEGORIES:
+            for path, fm, body in load_md(cat):
+                e, w = check_md(path, fm, body, warn_as_error)
+                total_e += len(e); total_w += len(w)
+                _report(path, e, w)
+
+    if total_e == 0 and total_w == 0:
+        print("All content is valid.")
+    elif total_e == 0:
+        print(f"{total_w} warning(s), 0 errors.")
     else:
-        print(
-            color(
-                f"{total_errors} error(s), {total_warnings} warning(s). "
-                "Run with --fix to auto-repair missing 'name' fields.",
-                "red",
-                "bold",
-            )
-        )
+        print(f"{total_e} error(s), {total_w} warning(s).", file=sys.stderr)
+    return 1 if total_e else 0
 
-    return 1 if total_errors else 0
+
+def _report(path: Path, errors, warnings) -> None:
+    rel = path.relative_to(REPO_ROOT)
+    if not errors and not warnings:
+        return
+    tag = "FAIL" if errors else "WARN"
+    print(f"  {tag}  {rel}")
+    for m in errors:
+        print(f"       error: {m}")
+    for m in warnings:
+        print(f"       warn:  {m}")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Validate dot-agent content.")
+    ap.add_argument("--warn-as-error", action="store_true")
+    ap.add_argument("--fix", action="store_true", help="Auto-insert missing skill 'name' fields.")
+    ap.add_argument("--content", choices=["agents", "skills", "md"])
+    args = ap.parse_args()
+    return _run(args.warn_as_error, args.fix, args.content)
 
 
 if __name__ == "__main__":
