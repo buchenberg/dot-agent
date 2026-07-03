@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/buchenberg/dot-agent/compare/v0.3.0...v0.4.0) (2026-07-03)
+
+
+### Features
+
+* add more dot agent stuff and update CI ([39a97fc](https://github.com/buchenberg/dot-agent/commit/39a97fc2e538c2bba4e0f6bc3e56e8317c2b4cf0))
+
 ## [0.3.0](https://github.com/buchenberg/dot-agent/compare/v0.2.0...v0.3.0) (2026-06-12)
 
 
